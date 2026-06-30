@@ -1,17 +1,24 @@
-# Copy to `.dev.vars` for local `wrangler dev`. In production set the secrets
-# with `wrangler secret put <NAME>` and the e-mail values as vars/secrets.
+# These are the values you must provide.
+#
+# - "Deploy to Cloudflare" button: you are prompted for each of these and they
+#   are stored as Worker secrets.
+# - Local dev: copy this file to `.dev.vars` and fill it in.
+# - Manual deploy: set each with `wrangler secret put <NAME>`.
 
-# Secrets
+# Hetzner Cloud API token (a read-only token is sufficient).
 HETZNER_API_TOKEN="your-hetzner-cloud-api-token"
+# Resend API key, used to send availability notification e-mails.
 RESEND_API_KEY="re_..."
+# A long random secret. Callers send it as `Authorization: Bearer <token>`.
 API_BEARER_TOKEN="a-long-random-shared-secret"
-
-# E-mail configuration. RESEND_FROM_EMAIL must be on a domain verified in Resend.
+# Default recipient for availability notifications.
 NOTIFICATION_EMAIL="you@example.com"
+# Sender address. Must be on a domain you have verified in Resend.
 RESEND_FROM_EMAIL="sniper@your-verified-domain.com"
 
-# Optional tuning (defaults shown). Also configurable as vars in wrangler.jsonc.
-POLL_INTERVAL_SECONDS="30"
-REQUEST_TTL_DAYS="30"
-SERVER_TYPE_CACHE_TTL_SECONDS="3600"
-HETZNER_RATE_LIMIT_PER_HOUR="3600"
+# Optional overrides — defaults live in wrangler.jsonc, no need to set these.
+# Uncomment to change a value locally.
+# POLL_INTERVAL_SECONDS="30"
+# REQUEST_TTL_DAYS="30"
+# SERVER_TYPE_CACHE_TTL_SECONDS="3600"
+# HETZNER_RATE_LIMIT_PER_HOUR="3600"

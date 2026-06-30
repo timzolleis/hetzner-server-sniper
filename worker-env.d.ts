@@ -12,4 +12,8 @@ interface Env {
   readonly RESEND_API_KEY: string
   /** Shared bearer token required by every management API endpoint. */
   readonly API_BEARER_TOKEN: string
+  /** Default recipient for availability notifications. */
+  readonly NOTIFICATION_EMAIL: string
+  /** Sender address; must be on a Resend-verified domain. */
+  readonly RESEND_FROM_EMAIL: string
 }

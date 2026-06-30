@@ -9,6 +9,17 @@ You register "server requests" — _"tell me when `cx22` is available (optionall
 polls Hetzner every 30 seconds, and as soon as a requested server type appears in
 a datacenter's availability set it marks the request fulfilled and e-mails you.
 
+## Deploy to your own Cloudflare account
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/timzolleis/hetzner-server-sniper)
+
+One click clones this repo to your GitHub, provisions the Worker + the
+SQLite-backed Durable Object, wires up CI (Workers Builds), and **prompts you for
+the five values you must supply** — `HETZNER_API_TOKEN`, `RESEND_API_KEY`,
+`API_BEARER_TOKEN`, `NOTIFICATION_EMAIL`, `RESEND_FROM_EMAIL` (stored as Worker
+secrets). The polling/TTL/rate-limit knobs ship with sane defaults. Durable
+Objects require the Workers Free plan or above (SQLite DOs are included on Free).
+
 ## How it works
 
 ```
@@ -66,20 +77,21 @@ curl -X POST https://<your-worker>/requests \
 
 ## Configuration
 
-Set as secrets (`wrangler secret put <NAME>`):
+**Secrets** — prompted by the deploy button; otherwise set with
+`wrangler secret put <NAME>` (or in `.dev.vars` for local dev):
 
-| Variable             | Description                                            |
+| Secret               | Description                                            |
 | -------------------- | ----------------------------------------------------- |
 | `HETZNER_API_TOKEN`  | Hetzner Cloud API token (read-only is enough).        |
 | `RESEND_API_KEY`     | Resend API key.                                        |
 | `API_BEARER_TOKEN`   | Shared secret required by the management API.          |
+| `NOTIFICATION_EMAIL` | Default recipient for notifications.                  |
+| `RESEND_FROM_EMAIL`  | Sender; **must** be on a domain verified in Resend.   |
 
-Set as vars (in `wrangler.jsonc`) or secrets:
+**Vars** (defaults in `wrangler.jsonc`, no action needed):
 
 | Variable                        | Default | Description                                                   |
 | ------------------------------- | ------- | ------------------------------------------------------------ |
-| `NOTIFICATION_EMAIL`            | —       | Default recipient for notifications.                         |
-| `RESEND_FROM_EMAIL`             | —       | Sender; **must** be on a domain verified in Resend.          |
 | `POLL_INTERVAL_SECONDS`         | `30`    | Poll cadence.                                                |
 | `REQUEST_TTL_DAYS`              | `30`    | Pending requests older than this are auto-evicted (`expired`).|
 | `SERVER_TYPE_CACHE_TTL_SECONDS` | `3600`  | How long the server-type-name cache is reused.               |
@@ -97,11 +109,15 @@ npm run typecheck                # tsc --noEmit
 
 ## Deploy
 
+Easiest is the [Deploy to Cloudflare](#deploy-to-your-own-cloudflare-account)
+button above. To deploy manually from a clone:
+
 ```bash
 wrangler secret put HETZNER_API_TOKEN
 wrangler secret put RESEND_API_KEY
 wrangler secret put API_BEARER_TOKEN
-# set NOTIFICATION_EMAIL and RESEND_FROM_EMAIL (vars or secrets)
+wrangler secret put NOTIFICATION_EMAIL
+wrangler secret put RESEND_FROM_EMAIL
 npm run deploy
 ```
 
