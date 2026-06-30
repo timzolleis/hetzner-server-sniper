@@ -24,19 +24,25 @@
   "cloudflare": {
     "bindings": {
       "HETZNER_API_TOKEN": {
-        "description": "Hetzner Cloud API token (a read-only token is sufficient)."
-      },
-      "RESEND_API_KEY": {
-        "description": "Resend API key, used to send availability notification e-mails."
+        "description": "Required. Hetzner Cloud API token (a read-only token is sufficient)."
       },
       "API_BEARER_TOKEN": {
-        "description": "A long random secret. Callers must send it as 'Authorization: Bearer <token>'."
+        "description": "Required. A long random secret. Callers send it as 'Authorization: Bearer <token>'."
+      },
+      "RESEND_API_KEY": {
+        "description": "E-mail channel: Resend API key. Set all three e-mail fields together, or leave blank."
       },
       "NOTIFICATION_EMAIL": {
-        "description": "Default recipient address for availability notifications."
+        "description": "E-mail channel: default recipient address for notifications."
       },
       "RESEND_FROM_EMAIL": {
-        "description": "Sender address. Must be on a domain you have verified in Resend."
+        "description": "E-mail channel: sender address. Must be on a domain verified in Resend."
+      },
+      "WEBHOOK_URL": {
+        "description": "Webhook channel: URL that receives a JSON POST when a server is available. Leave blank to disable."
+      },
+      "WEBHOOK_SECRET": {
+        "description": "Optional. Signs webhook bodies with 'X-Sniper-Signature: sha256=<hmac>'."
       }
     }
   }

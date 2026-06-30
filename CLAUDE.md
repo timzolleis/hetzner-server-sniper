@@ -25,11 +25,20 @@ deltas and decisions specific to this repo.
   re-arms it. `SniperService.tick` first auto-evicts requests older than
   `REQUEST_TTL_DAYS` (status `expired`) — independent of Hetzner, so eviction
   still happens when the API is down — then matches the survivors.
-- **The Worker edge (`src/index.ts`) is intentionally plain TypeScript** — bearer
-  auth + JSON + route dispatch → DO RPC. All domain logic is Effect; only the
-  platform handler boundary is not. DO RPC methods return a plain `ApiResult`
-  envelope (`src/api.ts`) so error→HTTP-status mapping happens inside the DO and
-  doesn't depend on RPC error serialization.
+- **The Worker edge is an Effect `HttpApi`** (`src/http/`, on
+  `effect/unstable/httpapi`): one `HttpApiGroup` (`sniper`) gated by a bearer
+  `HttpApiMiddleware` (`auth.ts`) plus an un-authed `health` group; `api.ts`
+  declares the contract, `handlers.ts` implements it by RPCing the DO, `web.ts`
+  composes the layer and exposes the web handler. `OpenApi.fromApi` serves
+  `/openapi.json` and Scalar serves the docs UI. `src/index.ts` only delegates
+  `fetch` to that handler. The handler (and its whole layer) is built **once per
+  isolate** — bindings are stable for an isolate's lifetime — with `env` provided
+  at build *and* threaded as the per-request context the middleware reads.
+- **DO RPC methods return a plain `ApiResult` envelope** (`src/api.ts`) so error
+  classification happens inside the DO, not via RPC error serialization. The
+  failure arm carries the **fully encoded** tagged error (`causeToResult` encodes
+  the squashed cause; defects become `InternalError`); the edge reconstructs the
+  matching error per endpoint so HttpApi renders the body and the `httpApiStatus`.
 - **Availability source:** `GET /datacenters` → a server type is available when its
   id is in some datacenter's `server_types.available`. Valid names come from
   `GET /server_types`. If the Hetzner OpenAPI spec dictates a different field, the
@@ -48,14 +57,18 @@ deltas and decisions specific to this repo.
   before `HetznerClient` (which takes tokens from it). The layer's only
   construction error is `ConfigError`.
 - **Errors** are `Schema.TaggedErrorClass` (see `src/errors.ts`); each carries a
-  `message`. `src/api.ts` maps tags → HTTP status.
+  `message` and an `httpApiStatus` annotation that drives its HTTP status. The
+  edge endpoints declare per-endpoint error sets; any non-domain failure flattens
+  to `InternalError` (500). `AppErrorUnion` is the set that can cross RPC.
 - **Domain types** are branded scalars + a `ServerRequest` `Schema.Class`
   (`src/schema.ts`). Requests are stored and returned in their **encoded** form;
   `patchRequest` does an encode→override→decode round-trip to keep brands valid.
 - **Testing:** `@effect/vitest` `it.effect` + `assert`. Replace seams through real
   layers (`RequestStore.layerMemory`, `Layer.succeed(AvailabilityService, …)`),
   never module mocks. Assert observable outcomes through `SniperService`'s public
-  methods.
+  methods. The edge is tested through the real `makeApiLive` web handler with a
+  faked DO stub (`test/http.test.ts`); keep edge code free of `cloudflare:workers`
+  imports so it loads under vitest (that's why the DO address lives in `handlers.ts`).
 
 ## Checks
 

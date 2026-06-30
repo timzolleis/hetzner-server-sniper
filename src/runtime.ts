@@ -3,7 +3,7 @@ import { FetchHttpClient } from "effect/unstable/http"
 import { AppConfig } from "./config"
 import { CloudflareEnv } from "./env"
 import { DurableStore } from "./durable-store"
-import { EmailService } from "./email/resend"
+import { Notifier } from "./notify/notifier"
 import { ConfigError } from "./errors"
 import { AvailabilityService } from "./hetzner/availability"
 import { HetznerClient } from "./hetzner/client"
@@ -34,7 +34,7 @@ export const makeMainLayer = (
   const foundations = Layer.mergeAll(
     RateLimiter.layer,
     RequestStore.layer,
-    EmailService.layer,
+    Notifier.layer,
   ).pipe(Layer.provideMerge(withConfig))
 
   const withClient = HetznerClient.layer.pipe(Layer.provideMerge(foundations))

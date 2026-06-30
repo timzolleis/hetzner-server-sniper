@@ -1,6 +1,6 @@
 import { it } from "@effect/vitest"
 import { assert } from "vitest"
-import { Effect, Layer, Redacted } from "effect"
+import { Effect, Layer, Option, Redacted } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/unstable/http"
 import { AppConfig } from "../src/config"
 import { DurableStore } from "../src/durable-store"
@@ -27,9 +27,8 @@ const httpLayer = (respond: (url: URL) => Response) =>
 
 const configStub = Layer.succeed(AppConfig, {
   hetznerToken: Redacted.make("token"),
-  resendApiKey: Redacted.make("key"),
-  notificationEmail: "ops@example.com",
-  fromEmail: "sniper@example.com",
+  email: Option.none(),
+  webhook: Option.none(),
   pollIntervalMs: 30_000,
   serverTypeCacheTtlMs: 3_600_000,
   rateLimitPerHour: 3600,

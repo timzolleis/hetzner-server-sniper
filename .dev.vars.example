@@ -1,23 +1,29 @@
-# These are the values you must provide.
+# The values you must provide.
 #
-# - "Deploy to Cloudflare" button: you are prompted for each of these and they
-#   are stored as Worker secrets.
+# - "Deploy to Cloudflare" button: you are prompted for each and they are stored
+#   as Worker secrets. Leave a channel's fields blank to disable that channel.
 # - Local dev: copy this file to `.dev.vars` and fill it in.
 # - Manual deploy: set each with `wrangler secret put <NAME>`.
 
+# ── Required ──
 # Hetzner Cloud API token (a read-only token is sufficient).
 HETZNER_API_TOKEN="your-hetzner-cloud-api-token"
-# Resend API key, used to send availability notification e-mails.
-RESEND_API_KEY="re_..."
 # A long random secret. Callers send it as `Authorization: Bearer <token>`.
 API_BEARER_TOKEN="a-long-random-shared-secret"
-# Default recipient for availability notifications.
-NOTIFICATION_EMAIL="you@example.com"
-# Sender address. Must be on a domain you have verified in Resend.
-RESEND_FROM_EMAIL="sniper@your-verified-domain.com"
 
-# Optional overrides — defaults live in wrangler.jsonc, no need to set these.
-# Uncomment to change a value locally.
+# ── Notifications: configure AT LEAST ONE channel (both is fine) ──
+
+# E-mail via Resend — set all three together, or leave all blank.
+RESEND_API_KEY="re_..."
+NOTIFICATION_EMAIL="you@example.com"          # default recipient
+RESEND_FROM_EMAIL="sniper@your-verified-domain.com"  # must be Resend-verified
+
+# Generic webhook — POSTs a JSON payload to this URL.
+WEBHOOK_URL="https://example.com/your-webhook"
+# Optional: signs each body with `X-Sniper-Signature: sha256=<hmac>`.
+# WEBHOOK_SECRET="a-shared-signing-secret"
+
+# ── Optional overrides — defaults live in wrangler.jsonc ──
 # POLL_INTERVAL_SECONDS="30"
 # REQUEST_TTL_DAYS="30"
 # SERVER_TYPE_CACHE_TTL_SECONDS="3600"

@@ -34,7 +34,8 @@ export class ServerRequest extends Schema.Class<ServerRequest>("ServerRequest")(
   serverType: ServerTypeName,
   /** `null` means "any location". */
   location: Schema.NullOr(LocationName),
-  email: EmailAddress,
+  /** Per-request override for the e-mail channel; `null` uses the default. */
+  email: Schema.NullOr(EmailAddress),
   status: RequestStatus,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,

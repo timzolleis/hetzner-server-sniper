@@ -1,13 +1,10 @@
 import { DurableObject } from "cloudflare:workers"
 import { Effect, ManagedRuntime } from "effect"
-import { causeToResult, type ApiResult } from "./api"
+import { causeToResult, internalError, type ApiResult } from "./api"
 import { ConfigError, RequestNotFound } from "./errors"
 import { makeMainLayer } from "./runtime"
 import { SniperService } from "./sniper"
 import type { ServerRequestView } from "./schema"
-
-/** The fixed name of the single, globally-shared Sniper instance. */
-export const SNIPER_DO_NAME = "global"
 
 const intervalMs = (env: Env): number =>
   Math.max(1000, (Number(env.POLL_INTERVAL_SECONDS) || 30) * 1000)
@@ -116,12 +113,8 @@ export class SniperDurableObject extends DurableObject<Env> {
       // A layer-construction failure (e.g. ConfigError) rejects the promise
       // before the inner effect runs; map it to a clean error envelope.
       .catch(
-        (error): ApiResult<A> => ({
-          ok: false,
-          status: 500,
-          tag: "Internal",
-          error: error instanceof Error ? error.message : String(error),
-        }),
+        (error): ApiResult<A> =>
+          internalError(error instanceof Error ? error.message : String(error)),
       )
   }
 }

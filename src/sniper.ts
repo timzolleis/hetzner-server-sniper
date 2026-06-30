@@ -3,7 +3,7 @@ import { AppConfig } from "./config"
 import { InvalidRequest, ServerTypeNotFound } from "./errors"
 import { AvailabilityService } from "./hetzner/availability"
 import type { AvailabilitySnapshot, ServerTypeIndex } from "./hetzner/availability"
-import { EmailService } from "./email/resend"
+import { Notifier } from "./notify/notifier"
 import { RequestStore } from "./requests/store"
 import {
   CreateServerRequest,
@@ -65,7 +65,7 @@ export class SniperService extends Context.Service<
     Effect.gen(function* () {
       const store = yield* RequestStore
       const availability = yield* AvailabilityService
-      const email = yield* EmailService
+      const notifier = yield* Notifier
       const config = yield* AppConfig
 
       return {
@@ -104,7 +104,8 @@ export class SniperService extends Context.Service<
               id,
               serverType: payload.serverType,
               location: payload.location ?? null,
-              email: payload.email ?? config.notificationEmail,
+              // null = use each channel's default (e.g. NOTIFICATION_EMAIL).
+              email: payload.email ?? null,
               status: "pending",
               createdAt: now,
               updatedAt: now,
@@ -182,13 +183,9 @@ export class SniperService extends Context.Service<
                     availableLocation: location,
                   })
                   yield* store.update(updated)
-                  // A send failure must not roll back fulfilment or abort the
-                  // cycle; log and move on (it will not be retried).
-                  yield* email.sendAvailable(updated, location).pipe(
-                    Effect.catchCause((cause) =>
-                      Effect.logError(`Notification e-mail failed for ${req.id}`, cause),
-                    ),
-                  )
+                  // Notification is best-effort and handled inside the Notifier
+                  // (per-channel failures are logged); fulfilment stands either way.
+                  yield* notifier.notify(updated, location)
                   count++
                 } else {
                   yield* store.update(
