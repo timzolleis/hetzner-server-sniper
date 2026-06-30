@@ -14,7 +14,12 @@ export type LocationName = typeof LocationName.Type
 export const EmailAddress = Schema.String.pipe(Schema.brand("EmailAddress"))
 export type EmailAddress = typeof EmailAddress.Type
 
-export const RequestStatus = Schema.Literals(["pending", "fulfilled", "cancelled"])
+export const RequestStatus = Schema.Literals([
+  "pending",
+  "fulfilled",
+  "cancelled",
+  "expired",
+])
 export type RequestStatus = typeof RequestStatus.Type
 
 // ── The server-request aggregate ─────────────────────────────────────────────

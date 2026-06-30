@@ -21,6 +21,8 @@ export class AppConfig extends Context.Service<
     readonly pollIntervalMs: number
     readonly serverTypeCacheTtlMs: number
     readonly rateLimitPerHour: number
+    /** Pending requests older than this are auto-evicted (status `expired`). */
+    readonly requestTtlMs: number
   }
 >()("app/AppConfig") {
   static readonly layer = Layer.effect(
@@ -53,6 +55,7 @@ export class AppConfig extends Context.Service<
         pollIntervalMs: numberFrom(env.POLL_INTERVAL_SECONDS, 30) * 1000,
         serverTypeCacheTtlMs: numberFrom(env.SERVER_TYPE_CACHE_TTL_SECONDS, 3600) * 1000,
         rateLimitPerHour: numberFrom(env.HETZNER_RATE_LIMIT_PER_HOUR, 3600),
+        requestTtlMs: numberFrom(env.REQUEST_TTL_DAYS, 30) * 86_400_000,
       }
     }),
   )

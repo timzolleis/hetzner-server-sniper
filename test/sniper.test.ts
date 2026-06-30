@@ -1,6 +1,7 @@
 import { it } from "@effect/vitest"
 import { assert } from "vitest"
 import { Effect, Layer, Redacted } from "effect"
+import { TestClock } from "effect/testing"
 import { AppConfig } from "../src/config"
 import { EmailService } from "../src/email/resend"
 import { ServerTypeNotFound } from "../src/errors"
@@ -42,6 +43,7 @@ const makeTestLayer = () => {
     pollIntervalMs: 30_000,
     serverTypeCacheTtlMs: 3_600_000,
     rateLimitPerHour: 3600,
+    requestTtlMs: 30 * 86_400_000,
   })
 
   const layer = SniperService.layer.pipe(
@@ -89,6 +91,27 @@ it.effect("fulfils an available request and notifies", () =>
     assert.deepStrictEqual(sentEmails, [
       { to: "ops@example.com", serverType: "cx22", location: "fsn1" },
     ])
+  }),
+)
+
+it.effect("auto-evicts a pending request once it passes the TTL", () =>
+  Effect.gen(function* () {
+    const { layer, sentEmails } = makeTestLayer()
+
+    const program = Effect.gen(function* () {
+      const sniper = yield* SniperService
+      const created = yield* sniper.createRequest({ serverType: "cax11" })
+      yield* TestClock.adjust("31 days")
+      const tick = yield* sniper.tick()
+      assert.strictEqual(tick.expired, 1)
+      assert.strictEqual(tick.fulfilled, 0)
+      assert.strictEqual(tick.hasPending, false)
+      return yield* sniper.getRequest(created.id)
+    }).pipe(Effect.provide(layer))
+
+    const after = yield* program
+    assert.strictEqual(after?.status, "expired")
+    assert.strictEqual(sentEmails.length, 0)
   }),
 )
 

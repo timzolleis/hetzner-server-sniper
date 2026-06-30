@@ -22,7 +22,9 @@ deltas and decisions specific to this repo.
   shared rate-limit budget + colocated state. The DO owns the SQLite request
   store, the persisted token bucket, the hourly name cache, and the `alarm()` loop.
   The alarm reschedules itself only while requests are pending; `createRequest`
-  re-arms it.
+  re-arms it. `SniperService.tick` first auto-evicts requests older than
+  `REQUEST_TTL_DAYS` (status `expired`) — independent of Hetzner, so eviction
+  still happens when the API is down — then matches the survivors.
 - **The Worker edge (`src/index.ts`) is intentionally plain TypeScript** — bearer
   auth + JSON + route dispatch → DO RPC. All domain logic is Effect; only the
   platform handler boundary is not. DO RPC methods return a plain `ApiResult`

@@ -28,7 +28,10 @@ client ──HTTP (Bearer)──▶  Worker (src/index.ts)  ──RPC──▶  
 - **Why a Durable Object?** Cloudflare cron triggers have a 1-minute floor. The DO
   `alarm()` gives a precise 30-second loop, serializes all polling (so the Hetzner
   rate-limit budget is genuinely shared across every request), and holds all state
-  in one place. The alarm only runs while pending requests exist.
+  in one place. The alarm only runs while pending requests exist, and pending
+  requests older than `REQUEST_TTL_DAYS` (default 30) are auto-evicted to
+  `expired` so a stale request can't keep the loop running forever. A request's
+  `status` is `pending` → `fulfilled` | `cancelled` | `expired`.
 - **Availability** is read from Hetzner's `GET /datacenters`: a server type is
   "available" when its id appears in some datacenter's `server_types.available`.
   The valid server-type **names** come from `GET /server_types` and are cached for
@@ -78,6 +81,7 @@ Set as vars (in `wrangler.jsonc`) or secrets:
 | `NOTIFICATION_EMAIL`            | —       | Default recipient for notifications.                         |
 | `RESEND_FROM_EMAIL`             | —       | Sender; **must** be on a domain verified in Resend.          |
 | `POLL_INTERVAL_SECONDS`         | `30`    | Poll cadence.                                                |
+| `REQUEST_TTL_DAYS`              | `30`    | Pending requests older than this are auto-evicted (`expired`).|
 | `SERVER_TYPE_CACHE_TTL_SECONDS` | `3600`  | How long the server-type-name cache is reused.               |
 | `HETZNER_RATE_LIMIT_PER_HOUR`   | `3600`  | Token-bucket capacity / refill (per hour) for Hetzner calls. |
 

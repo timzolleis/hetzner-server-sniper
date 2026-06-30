@@ -33,6 +33,7 @@ const configStub = Layer.succeed(AppConfig, {
   pollIntervalMs: 30_000,
   serverTypeCacheTtlMs: 3_600_000,
   rateLimitPerHour: 3600,
+  requestTtlMs: 30 * 86_400_000,
 })
 
 const rateLimiterStub = Layer.succeed(RateLimiter, { take: () => Effect.void })

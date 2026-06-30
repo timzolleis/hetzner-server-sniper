@@ -88,7 +88,7 @@ export class SniperDurableObject extends DurableObject<Env> {
   override async alarm(): Promise<void> {
     const result = await this.#runtime
       .runPromise(Effect.flatMap(SniperService, (sniper) => sniper.tick()))
-      .catch(() => ({ hasPending: true, checked: 0, fulfilled: 0 }))
+      .catch(() => ({ hasPending: true, checked: 0, fulfilled: 0, expired: 0 }))
     // Keep polling while pending requests remain; otherwise let the loop idle
     // until the next createRequest re-arms it.
     if (result.hasPending) {

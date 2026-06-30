@@ -20,6 +20,7 @@ export interface TickResult {
   readonly hasPending: boolean
   readonly checked: number
   readonly fulfilled: number
+  readonly expired: number
 }
 
 /**
@@ -143,15 +144,33 @@ export class SniperService extends Context.Service<
           Effect.gen(function* () {
             const pending = yield* store.pending()
             if (pending.length === 0) {
-              return { hasPending: false, checked: 0, fulfilled: 0 }
+              return { hasPending: false, checked: 0, fulfilled: 0, expired: 0 }
             }
 
-            const fulfilled = yield* Effect.gen(function* () {
+            const now = yield* Clock.currentTimeMillis
+
+            // Auto-evict requests older than the TTL. This runs independently of
+            // Hetzner, so stale requests are reclaimed even when the API is down.
+            const active: Array<ServerRequest> = []
+            let expired = 0
+            for (const req of pending) {
+              if (now - req.createdAt > config.requestTtlMs) {
+                yield* store.update(
+                  patchRequest(req, { status: "expired", updatedAt: now }),
+                )
+                expired++
+              } else {
+                active.push(req)
+              }
+            }
+
+            // Match the survivors against current availability. Skips the
+            // Hetzner call entirely when everything was just evicted.
+            const matchActive = Effect.gen(function* () {
               const index = yield* availability.serverTypeIndex()
               const snapshot = yield* availability.snapshot()
-              const now = yield* Clock.currentTimeMillis
               let count = 0
-              for (const req of pending) {
+              for (const req of active) {
                 const location = matchLocation(req, index, snapshot)
                 if (location !== null) {
                   const updated = patchRequest(req, {
@@ -185,8 +204,15 @@ export class SniperService extends Context.Service<
               ),
             )
 
+            const fulfilled = active.length === 0 ? 0 : yield* matchActive
+
             const remaining = yield* store.countPending()
-            return { hasPending: remaining > 0, checked: pending.length, fulfilled }
+            return {
+              hasPending: remaining > 0,
+              checked: pending.length,
+              fulfilled,
+              expired,
+            }
           }).pipe(Effect.withSpan("SniperService.tick")),
       }
     }),
