@@ -1,6 +1,7 @@
 import { Cause, Context, Effect, Layer, Redacted } from "effect"
 import {
   HttpClient,
+  type HttpClientError,
   HttpClientRequest,
   HttpClientResponse,
 } from "effect/unstable/http"
@@ -8,8 +9,36 @@ import { Schema } from "effect"
 import { AppConfig } from "../config"
 import { HetznerApiError, RateLimitExceeded } from "../errors"
 import { RateLimiter } from "../rate-limiter"
+import { ErrorResponse } from "./schemas"
 
 const BASE_URL = "https://api.hetzner.cloud/v1"
+
+/**
+ * Turn a transport/status failure into a {@link HetznerApiError}, parsing
+ * Hetzner's `{ error: { code, message } }` body when a response is present so
+ * the upstream status and reason are surfaced rather than a generic message.
+ */
+const failFromHttpError = (
+  path: string,
+  error: HttpClientError.HttpClientError,
+): Effect.Effect<never, HetznerApiError> =>
+  Effect.gen(function* () {
+    const response = error.response
+    if (response === undefined) {
+      return yield* new HetznerApiError({
+        message: `Hetzner GET ${path} failed: ${error.message}`,
+      })
+    }
+    const body = yield* HttpClientResponse.schemaBodyJson(ErrorResponse)(response).pipe(
+      Effect.catchCause(() => Effect.succeed(undefined)),
+    )
+    const detail =
+      body !== undefined ? `${body.error.code}: ${body.error.message}` : error.message
+    return yield* new HetznerApiError({
+      status: response.status,
+      message: `Hetzner GET ${path} failed (HTTP ${response.status}): ${detail}`,
+    })
+  })
 
 /**
  * The authenticated, rate-limited HTTP client for the Hetzner Cloud API. Every
@@ -50,12 +79,8 @@ export class HetznerClient extends Context.Service<
           Effect.gen(function* () {
             yield* limiter.take(1)
             const response = yield* client.get(path).pipe(
-              Effect.catchCause((cause) =>
-                Effect.fail(
-                  new HetznerApiError({
-                    message: `Hetzner GET ${path} failed: ${String(Cause.squash(cause))}`,
-                  }),
-                ),
+              Effect.catchTag("HttpClientError", (error) =>
+                failFromHttpError(path, error),
               ),
             )
             return yield* HttpClientResponse.schemaBodyJson(schema)(response).pipe(

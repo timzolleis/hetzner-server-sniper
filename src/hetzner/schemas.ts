@@ -20,6 +20,16 @@ export interface PagedResponse {
 export const nextPage = (response: PagedResponse): number | null =>
   response.meta.pagination.next_page
 
+/** The `{ error: { code, message } }` envelope Hetzner returns on failures. */
+class HetznerError extends Schema.Class<HetznerError>("HetznerError")({
+  code: Schema.String,
+  message: Schema.String,
+}) {}
+
+export class ErrorResponse extends Schema.Class<ErrorResponse>("ErrorResponse")({
+  error: HetznerError,
+}) {}
+
 export class ServerType extends Schema.Class<ServerType>("ServerType")({
   id: Schema.Int,
   name: Schema.String,
