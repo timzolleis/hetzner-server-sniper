@@ -2,8 +2,19 @@ import { Clock, Context, Effect, Layer } from "effect"
 import { AppConfig } from "../config"
 import { DurableStore } from "../durable-store"
 import { HetznerApiError, RateLimitExceeded } from "../errors"
+import { Schema } from "effect"
 import { HetznerClient } from "./client"
-import { ListDataCentersResponse, ListServerTypesResponse } from "./schemas"
+import {
+  ListDataCentersResponse,
+  ListServerTypesResponse,
+  nextPage,
+  type PagedResponse,
+} from "./schemas"
+
+/** Hetzner's maximum page size for list endpoints. */
+const PER_PAGE = 50
+/** Defensive upper bound so a misbehaving `next_page` can't loop forever. */
+const MAX_PAGES = 100
 
 const SERVER_TYPES_CACHE_KEY = "cache:server-types"
 
@@ -56,12 +67,37 @@ export class AvailabilityService extends Context.Service<
       const store = yield* DurableStore
       const config = yield* AppConfig
 
+      /** Fetch every page of a Hetzner list endpoint and concatenate the items. */
+      const fetchAllPages = <A extends PagedResponse, I, R, Item>(
+        path: string,
+        schema: Schema.Codec<A, I, R>,
+        items: (response: A) => ReadonlyArray<Item>,
+      ) =>
+        Effect.gen(function* () {
+          const all: Array<Item> = []
+          let page = 1
+          for (let guard = 0; guard < MAX_PAGES; guard++) {
+            const sep = path.includes("?") ? "&" : "?"
+            const response = yield* client.getJson(
+              `${path}${sep}page=${page}&per_page=${PER_PAGE}`,
+              schema,
+            )
+            all.push(...items(response))
+            const next = nextPage(response)
+            if (next === null) break
+            page = next
+          }
+          return all
+        })
+
       const fetchServerTypes = Effect.fn("AvailabilityService.fetchServerTypes")(
         function* () {
-          const response = yield* client.getJson("/server_types", ListServerTypesResponse)
-          return response.server_types.map(
-            (type) => [type.name, type.id] as const,
+          const types = yield* fetchAllPages(
+            "/server_types",
+            ListServerTypesResponse,
+            (response) => response.server_types,
           )
+          return types.map((type) => [type.name, type.id] as const)
         },
       )
 
@@ -82,9 +118,13 @@ export class AvailabilityService extends Context.Service<
 
         snapshot: () =>
           Effect.gen(function* () {
-            const response = yield* client.getJson("/datacenters", ListDataCentersResponse)
+            const datacenters = yield* fetchAllPages(
+              "/datacenters",
+              ListDataCentersResponse,
+              (response) => response.datacenters,
+            )
             const availableByTypeId = new Map<number, Set<string>>()
-            for (const datacenter of response.datacenters) {
+            for (const datacenter of datacenters) {
               for (const typeId of datacenter.server_types.available) {
                 const locations = availableByTypeId.get(typeId) ?? new Set<string>()
                 locations.add(datacenter.location.name)
