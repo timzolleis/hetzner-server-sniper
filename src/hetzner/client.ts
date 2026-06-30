@@ -1,0 +1,74 @@
+import { Cause, Context, Effect, Layer, Redacted } from "effect"
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "effect/unstable/http"
+import { Schema } from "effect"
+import { AppConfig } from "../config"
+import { HetznerApiError, RateLimitExceeded } from "../errors"
+import { RateLimiter } from "../rate-limiter"
+
+const BASE_URL = "https://api.hetzner.cloud/v1"
+
+/**
+ * The authenticated, rate-limited HTTP client for the Hetzner Cloud API. Every
+ * request first acquires a token from {@link RateLimiter}; transport/HTTP
+ * failures surface as {@link HetznerApiError}.
+ */
+export class HetznerClient extends Context.Service<
+  HetznerClient,
+  {
+    /** GET `path` and decode the JSON body with `schema`. */
+    readonly getJson: <A, I, R>(
+      path: string,
+      schema: Schema.Codec<A, I, R>,
+    ) => Effect.Effect<A, HetznerApiError | RateLimitExceeded, R>
+  }
+>()("app/HetznerClient") {
+  static readonly layer = Layer.effect(
+    HetznerClient,
+    Effect.gen(function* () {
+      const config = yield* AppConfig
+      const limiter = yield* RateLimiter
+      const token = Redacted.value(config.hetznerToken)
+
+      const client = (yield* HttpClient.HttpClient).pipe(
+        HttpClient.mapRequest((request) =>
+          request.pipe(
+            HttpClientRequest.prependUrl(BASE_URL),
+            HttpClientRequest.acceptJson,
+            HttpClientRequest.bearerToken(token),
+          ),
+        ),
+        HttpClient.filterStatusOk,
+        HttpClient.retryTransient({ times: 3 }),
+      )
+
+      return {
+        getJson: (path, schema) =>
+          Effect.gen(function* () {
+            yield* limiter.take(1)
+            const response = yield* client.get(path).pipe(
+              Effect.catchCause((cause) =>
+                Effect.fail(
+                  new HetznerApiError({
+                    message: `Hetzner GET ${path} failed: ${String(Cause.squash(cause))}`,
+                  }),
+                ),
+              ),
+            )
+            return yield* HttpClientResponse.schemaBodyJson(schema)(response).pipe(
+              Effect.catchCause((cause) =>
+                Effect.fail(
+                  new HetznerApiError({
+                    message: `Failed to decode Hetzner GET ${path} response: ${String(Cause.squash(cause))}`,
+                  }),
+                ),
+              ),
+            )
+          }),
+      }
+    }),
+  )
+}

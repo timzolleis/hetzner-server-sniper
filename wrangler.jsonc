@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hetzner-server-sniper",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SNIPER",
+        "class_name": "SniperDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SniperDurableObject"]
+    }
+  ],
+  "vars": {
+    // Non-secret configuration. Secrets (HETZNER_API_TOKEN, RESEND_API_KEY,
+    // API_BEARER_TOKEN) are set with `wrangler secret put <NAME>`.
+    "NOTIFICATION_EMAIL": "",
+    "RESEND_FROM_EMAIL": "",
+    "POLL_INTERVAL_SECONDS": "30",
+    "SERVER_TYPE_CACHE_TTL_SECONDS": "3600",
+    "HETZNER_RATE_LIMIT_PER_HOUR": "3600"
+  }
+}

@@ -1,0 +1,16 @@
+# Copy to `.dev.vars` for local `wrangler dev`. In production set the secrets
+# with `wrangler secret put <NAME>` and the e-mail values as vars/secrets.
+
+# Secrets
+HETZNER_API_TOKEN="your-hetzner-cloud-api-token"
+RESEND_API_KEY="re_..."
+API_BEARER_TOKEN="a-long-random-shared-secret"
+
+# E-mail configuration. RESEND_FROM_EMAIL must be on a domain verified in Resend.
+NOTIFICATION_EMAIL="you@example.com"
+RESEND_FROM_EMAIL="sniper@your-verified-domain.com"
+
+# Optional tuning (defaults shown). Also configurable as vars in wrangler.jsonc.
+POLL_INTERVAL_SECONDS="30"
+SERVER_TYPE_CACHE_TTL_SECONDS="3600"
+HETZNER_RATE_LIMIT_PER_HOUR="3600"
